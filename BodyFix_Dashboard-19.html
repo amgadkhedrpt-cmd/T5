@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BodyFix Centers — Payroll Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=IBM+Plex+Mono:wght@400;600&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0A0F1E;--surface:#111827;--card:#161D2F;--border:#1E2A42;
+  --accent:#3B82F6;--gold:#F59E0B;--green:#10B981;--red:#EF4444;
+  --purple:#8B5CF6;--teal:#14B8A6;--text:#F1F5F9;--muted:#64748B;--dim:#334155;
+}
+body{background:var(--bg);color:var(--text);font-family:'Tajawal',sans-serif;direction:rtl;min-height:100vh}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* HEADER */
+.header{
+  background:linear-gradient(135deg,#0D1B2E 0%,#111827 100%);
+  border-bottom:1px solid var(--border);padding:20px 32px;
+  display:flex;align-items:center;gap:16px;
+  position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);
+}
+.header-logo{
+  width:44px;height:44px;border-radius:12px;
+  background:linear-gradient(135deg,var(--accent),#6366F1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;flex-shrink:0;box-shadow:0 0 20px #3B82F620;
+}
+.header-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--text)}
+.header-sub{font-size:13px;color:var(--muted);margin-top:2px}
+.header-spacer{flex:1}
+.header-badges{display:flex;gap:8px;align-items:center}
+.badge{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:.5px}
+.badge-blue{background:#3B82F620;color:var(--accent);border:1px solid #3B82F640}
+.badge-green{background:#10B98115;color:var(--green);border:1px solid #10B98140}
+
+/* UPLOAD */
+.upload-zone{margin:40px auto;max-width:900px;padding:0 24px}
+.upload-intro{text-align:center;margin-bottom:28px}
+.upload-intro-icon{font-size:40px;margin-bottom:8px}
+.upload-intro-title{font-size:18px;font-weight:800}
+.upload-intro-sub{color:var(--muted);font-size:13px;margin-top:4px}
+.upload-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:16px}
+.upload-card{
+  background:var(--card);border:1.5px dashed var(--border);border-radius:16px;
+  padding:24px 20px;text-align:center;cursor:pointer;transition:all .2s;
+  position:relative;overflow:hidden;
+}
+.upload-card:hover{border-color:var(--accent);background:#3B82F610;transform:translateY(-2px)}
+.upload-card.done{border-color:#10B98140;border-style:solid;background:#10B98108}
+.upload-card.done:hover{border-color:var(--green)}
+.upload-card input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{font-size:32px;margin-bottom:10px}
+.upload-label{font-size:14px;font-weight:700;color:var(--text)}
+.upload-hint{font-size:11px;color:var(--muted);margin-top:4px}
+.upload-status{font-size:11px;color:var(--green);margin-top:6px;font-weight:600}
+.run-btn{
+  width:100%;padding:16px;border-radius:14px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent),#6366F1);
+  color:white;font-size:16px;font-weight:800;font-family:'Tajawal',sans-serif;
+  transition:all .2s;box-shadow:0 4px 24px #3B82F620;
+}
+.run-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 32px #3B82F630}
+.run-btn:disabled{opacity:.4;cursor:not-allowed}
+.error-box{background:#EF444415;border:1px solid #EF444440;border-radius:12px;padding:16px 20px;margin:16px 0;color:var(--red);font-size:13px}
+
+/* LOADING */
+.loading{text-align:center;padding:80px 20px;display:none}
+.spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* DASHBOARD */
+#dashboard{display:none;padding:24px 32px}
+.dl-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.dl-btn{
+  padding:8px 18px;border-radius:10px;border:1px solid;
+  font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;
+  font-family:'Tajawal',sans-serif;display:inline-flex;align-items:center;gap:6px;background:transparent;
+}
+.dl-btn-blue{color:var(--accent);border-color:#3B82F640}
+.dl-btn-blue:hover{background:var(--accent);color:white;border-color:var(--accent)}
+.dl-btn-green{color:var(--green);border-color:#10B98140}
+.dl-btn-green:hover{background:var(--green);color:white;border-color:var(--green)}
+.dl-btn-gold{color:var(--gold);border-color:#F59E0B40}
+.dl-btn-gold:hover{background:var(--gold);color:white;border-color:var(--gold)}
+
+/* STAT CARDS */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:32px}
+.stat-card{
+  background:var(--card);border:1px solid var(--border);border-radius:16px;
+  padding:20px 18px;position:relative;overflow:hidden;transition:transform .2s;
+}
+.stat-card:hover{transform:translateY(-2px)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ac)}
+.stat-icon{font-size:26px;margin-bottom:10px}
+.stat-value{font-size:26px;font-weight:800;font-family:'IBM Plex Mono',monospace;color:var(--ac)}
+.stat-label{font-size:12px;color:var(--muted);margin-top:4px;font-weight:500}
+
+/* SECTION HEADER */
+.sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:16px;margin-top:28px}
+.sec-hdr-line{flex:1;height:1px;background:var(--border)}
+.sec-hdr-title{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
+
+/* JOB BAR */
+.job-bar{background:var(--card);border-radius:12px;padding:14px 18px;border:1px solid var(--border);margin-bottom:10px}
+.job-bar-top{display:flex;justify-content:space-between;margin-bottom:8px;align-items:center}
+.job-bar-name{font-weight:700;font-size:14px}
+.job-bar-amt{font-family:'IBM Plex Mono',monospace;font-weight:800;font-size:15px}
+.job-bar-pct{text-align:left;font-size:11px;color:var(--muted);margin-top:4px}
+.progress-wrap{background:var(--dim);border-radius:99px;height:6px;overflow:hidden}
+.progress-bar{height:100%;border-radius:99px;transition:width .6s ease}
+
+/* TABS */
+.tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
+.tab{
+  padding:8px 20px;border-radius:10px;border:1px solid var(--border);
+  background:var(--card);color:var(--muted);font-size:13px;font-weight:700;
+  cursor:pointer;transition:all .2s;font-family:'Tajawal',sans-serif;
+  display:flex;align-items:center;gap:6px;
+}
+.tab:hover{color:var(--text);border-color:var(--dim)}
+.tab.active{color:white;border-color:transparent}
+.tab-count{background:rgba(255,255,255,.2);border-radius:8px;padding:1px 7px;font-size:11px}
+
+/* TABLE */
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:24px}
+.table-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.table-title{font-size:15px;font-weight:700}
+.table-container{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:12px 14px;text-align:right;color:var(--muted);font-weight:600;background:var(--surface);border-bottom:1px solid var(--border);white-space:nowrap;font-size:12px}
+td{padding:11px 14px;border-bottom:1px solid #1E2A4210;white-space:nowrap}
+tr:hover td{background:#1E2A4220}
+tr:last-child td{border-bottom:none}
+.num{font-family:'IBM Plex Mono',monospace}
+.num-pos{color:var(--green);font-weight:700}
+.num-neg{color:var(--red);font-weight:700}
+.num-gold{color:var(--gold);font-weight:700}
+.grand-total{font-size:14px;font-weight:800;background:#3B82F610 !important}
+.job-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700}
+.att-toggle{cursor:pointer;color:var(--accent);font-size:11px;text-decoration:underline;background:none;border:none;font-family:'Tajawal',sans-serif;padding:2px 4px}
+
+/* ATT SUB TABLE */
+.att-sub{display:none;padding:0 14px 14px}
+.att-sub-inner{background:var(--surface);border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+.att-sub table{font-size:11px}
+.att-sub th{padding:8px 10px;font-size:11px}
+.att-sub td{padding:7px 10px}
+
+/* INDIVIDUAL DL BUTTONS */
+.indiv-dl{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:32px}
+
+/* GRAND FOOTER */
+.grand-footer{
+  background:linear-gradient(135deg,#0D1B2E,#111827);
+  border:1px solid var(--border);border-radius:16px;
+  padding:24px 28px;display:flex;align-items:center;
+  justify-content:space-between;margin-bottom:40px;
+}
+.grand-footer-label{font-size:13px;color:var(--muted);margin-bottom:4px}
+.grand-footer-sub{font-size:12px;color:var(--muted)}
+.grand-footer-val{font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:800;color:var(--gold)}
+
+/* EMPTY */
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty-icon{font-size:40px;margin-bottom:10px}
+
+@media(max-width:768px){
+  #dashboard{padding:16px}
+  .header{padding:14px 16px}
+  .summary-grid{grid-template-columns:repeat(2,1fr)}
+  .grand-footer{flex-direction:column;gap:12px;text-align:center}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-logo">💼</div>
+  <div>
+    <div class="header-title">BodyFix Centers — Payroll Dashboard</div>
+    <div class="header-sub">نظام قسائم الرواتب الشهري</div>
+  </div>
+  <div class="header-spacer"></div>
+  <div class="header-badges" id="headerBadges"></div>
+</div>
+
+<!-- UPLOAD -->
+<div class="upload-zone" id="uploadZone">
+  <div class="upload-intro">
+    <div class="upload-intro-icon">📂</div>
+    <div class="upload-intro-title">ارفع ملفات الرواتب</div>
+    <div class="upload-intro-sub">سيتم حساب جميع البيانات تلقائياً من الملفات</div>
+  </div>
+  <div class="upload-grid">
+    <label class="upload-card" id="card_employees">
+      <input type="file" accept=".xlsx,.xls" onchange="handleFile('employees',this)"/>
+      <div class="upload-icon" id="icon_employees">👥</div>
+      <div class="upload-label">ملف بيانات الموظفين</div>
+      <div class="upload-hint">يحتوي شيت Data_Entry</div>
+      <div class="upload-status" id="status_employees"></div>
+    </label>
+    <label class="upload-card" id="card_attendance">
+      <input type="file" accept=".xlsx,.xls" onchange="handleFile('attendance',this)"/>
+      <div class="upload-icon" id="icon_attendance">📅</div>
+      <div class="upload-label">ملف البصمة</div>
+      <div class="upload-hint">حضور وانصراف شهري</div>
+      <div class="upload-status" id="status_attendance"></div>
+    </label>
+    <label class="upload-card" id="card_completion">
+      <input type="file" accept=".xlsx,.xls" onchange="handleFile('completion',this)"/>
+      <div class="upload-icon" id="icon_completion">📁</div>
+      <div class="upload-label">ملف الاستكمال</div>
+      <div class="upload-hint">المطلوب والمنجز</div>
+      <div class="upload-status" id="status_completion"></div>
+    </label>
+    <label class="upload-card" id="card_doc_errors">
+      <input type="file" accept=".xlsx,.xls" onchange="handleFile('doc_errors',this)"/>
+      <div class="upload-icon" id="icon_doc_errors">❌</div>
+      <div class="upload-label">ملف أخطاء الكومبليت</div>
+      <div class="upload-hint">مراجعة الأخطاء</div>
+      <div class="upload-status" id="status_doc_errors"></div>
+    </label>
+  </div>
+  <div class="error-box" id="errorBox" style="display:none"></div>
+  <button class="run-btn" id="runBtn" onclick="runPayroll()" disabled>
+    📂 ارفع الملفات الأربعة أولاً
+  </button>
+</div>
+
+<!-- LOADING -->
+<div class="loading" id="loadingDiv">
+  <div class="spinner"></div>
+  <div style="color:var(--muted)">جاري تحليل البيانات...</div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const JOB_META = {
+  'Physical therapist': {color:'#3B82F6',icon:'🏥',short:'PT'},
+  'Assistant':          {color:'#10B981',icon:'💆',short:'Asst'},
+  'Secretary':          {color:'#F59E0B',icon:'📋',short:'Secr'},
+  'Housekeeping':       {color:'#8B5CF6',icon:'🧹',short:'HK'},
+  'Nutrition doctor':   {color:'#14B8A6',icon:'🥗',short:'Nutr'},
+};
+const JOBS = Object.keys(JOB_META);
+const OT_MULT = {'Physical therapist':1,'Nutrition doctor':1,'Assistant':1.5,'Secretary':1.5,'Housekeeping':1.5};
+const ATT_NAME_MAP = {
+  'Shorouk':'Sherouk','Mohammad Reda':'Mohamed Reda',
+  'Sara Hussein':'Sarah Hussein','Sarah Ahmad':'Sara Ahmad','Yasmin Mohamad':'Yasmin Mohammad'
+};
+const HARAM_BONS = [200,300,300,200,200];
+const files = {employees:null,attendance:null,completion:null,doc_errors:null};
+let EMPLOYEES = [];
+let activeTab = 'all';
+let expandedRows = new Set();
+
+// ── FILE HANDLING ─────────────────────────────────────────────────────────────
+function handleFile(key, input) {
+  const f = input.files[0]; if(!f) return;
+  files[key] = f;
+  document.getElementById('card_'+key).classList.add('done');
+  document.getElementById('icon_'+key).textContent = '✅';
+  document.getElementById('status_'+key).textContent = '📎 '+f.name;
+  checkReady();
+}
+function checkReady() {
+  const ok = files.employees && files.attendance && files.completion && files.doc_errors;
+  const btn = document.getElementById('runBtn');
+  btn.disabled = !ok;
+  btn.textContent = ok ? '⚡ احسب الرواتب' : '📂 ارفع الملفات الأربعة أولاً';
+}
+
+// ── PARSE ─────────────────────────────────────────────────────────────────────
+function readWb(f) {
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>{try{res(XLSX.read(e.target.result,{type:'array',cellDates:true}))}catch(err){rej(err)}};
+    r.onerror=rej; r.readAsArrayBuffer(f);
+  });
+}
+
+function parseEmployees(wb) {
+  const sheet = wb.Sheets['Data_Entry'];
+  let rows = XLSX.utils.sheet_to_json(sheet,{defval:''});
+  // Detect header row if needed
+  if (!rows[0]?.Name && !rows[0]?.['الاسم']) {
+    const raw = XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+    let hdrIdx=0;
+    for(let i=0;i<Math.min(6,raw.length);i++){
+      if(raw[i].some(c=>String(c).includes('الاسم')||c==='Name')){hdrIdx=i;break;}
+    }
+    const hdrs = raw[hdrIdx];
+    rows = raw.slice(hdrIdx+1).map(r=>{const o={};hdrs.forEach((h,i)=>o[String(h).trim()]=r[i]??'');return o;});
+  }
+  const COL = {
+    'الاسم':'Name','الراتب الأساسي':'Basic','الزيادة':'AnnualIncrease','الوظيفة':'Job',
+    'الفرع':'Branch','الشفتات':'Shifts','ساعات/شفت':'ShiftHours','OT_Days':'OT_Days',
+    'UT أيام':'UT_Days','بونص أيام':'Bonus_Value','جزاء أيام':'Penalties_Value','قرض':'Loan',
+    'ورشة':'Workshop_Y_N','تاريخ انضمام':'JoiningDate'
+  };
+  return rows.map(r=>{
+    const o={...r};
+    Object.entries(COL).forEach(([ar,en])=>{
+      const k=Object.keys(r).find(k=>ar.length>2?k.includes(ar):k===ar);
+      if(k&&!o[en]) o[en]=r[k];
+    });
+    return o;
+  }).filter(r=>r.Name&&String(r.Name).trim()&&!['nan','—',''].includes(String(r.Name).trim()));
+}
+
+function parseAttendance(wb) {
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet,{defval:''});
+  return rows.filter(r=>/\d{4}-\d{2}-\d{2}/.test(String(r['التاريخ']||'')));
+}
+
+function parseCompletion(wb) {
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  let rows = XLSX.utils.sheet_to_json(sheet,{defval:''});
+  if(!rows[0]?.['اسم الدكتور']){
+    const raw=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+    const hi=raw.findIndex(r=>r.some(c=>String(c).includes('اسم')));
+    const hdrs=raw[hi]||raw[0];
+    rows=raw.slice(hi+1).map(r=>{const o={};hdrs.forEach((h,i)=>o[String(h).trim().replace(/\n/g,'')]=r[i]??'');return o;});
+  }
+  const map={};
+  rows.forEach(r=>{
+    const name=Object.entries(r).find(([k])=>k.includes('اسم'))?.[1];
+    const mat=Object.entries(r).find(([k])=>k.includes('مطلوب'))?.[1];
+    const mak=Object.entries(r).find(([k])=>k.includes('منجز'))?.[1];
+    if(name) map[String(name).trim()]={mat:Number(mat)||0,mak:Number(mak)||0};
+  });
+  return map;
+}
+
+function parseDocErrors(wb) {
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet,{defval:''});
+  const errs={};
+  rows.forEach(r=>{
+    const doc=String(r['اسم الدكتور']||'').trim();
+    if(!doc) return;
+    if(!errs[doc]) errs[doc]=[];
+    errs[doc].push({date:String(r['التاريخ']||'').slice(0,10),patient:r['اسم المريض'],note:r['الملحوظة']||r['ملحوظة']||''});
+  });
+  return errs;
+}
+
+// ── CALC ──────────────────────────────────────────────────────────────────────
+function calcEmployee(emp, attRows, fcMap, docErrMap) {
+  const name = String(emp.Name||'').trim();
+  const job  = String(emp.Job||'Physical therapist').trim();
+  const basic = Number(emp.Basic)||0;
+  const annual= Number(emp.AnnualIncrease)||0;
+  const newBasic=basic+annual;
+  const shifts=Number(emp.Shifts)||22;
+  const shiftHrs=Number(emp.ShiftHours)||7;
+
+  const REV=Object.fromEntries(Object.entries(ATT_NAME_MAP).map(([k,v])=>[v,k]));
+  const attName=REV[name]||name;
+  const myAtt=attRows.filter(r=>String(r['الاسم'])===name||String(r['الاسم'])===attName);
+  const attDays=myAtt.length;
+  let delayCount=0,totalExtraMin=0;
+
+  const toFrac=t=>{
+    if(typeof t==='number') return t;
+    if(typeof t==='string'&&t.includes(':')){const[h,m,s]=t.split(':').map(Number);return(h*3600+m*60+(s||0))/86400;}
+    if(t instanceof Date) return(t.getHours()*3600+t.getMinutes()*60+t.getSeconds())/86400;
+    return null;
+  };
+
+  const attDetail = myAtt.map(r=>{
+    let delayMin=0,extraMin=0;
+    try{
+      const arr=toFrac(r['وقت الحضور']),leave=toFrac(r['وقت الانصراف']);
+      const schedRaw=r['الموعد الرسمي'],hrsReq=Number(r['الساعات المطلوبة'])||shiftHrs;
+      let sched=null;
+      if(schedRaw){const p=String(schedRaw).split(':');sched=(parseInt(p[0])*60+parseInt(p[1]||0))/1440;}
+      if(arr!=null&&sched!=null) delayMin=Math.max(0,(arr-sched)*1440);
+      if(leave!=null&&sched!=null){extraMin=Math.max(0,(leave-(sched+hrsReq/24))*1440);if(extraMin>=600)extraMin=0;}
+    }catch{}
+    if(delayMin>10) delayCount++;
+    totalExtraMin+=extraMin;
+    return{date:String(r['التاريخ']||'').slice(0,10),branch:r['الفرع']||'',
+      arrival:r['وقت الحضور'],leave:r['وقت الانصراف'],
+      delayMin:Math.round(delayMin*10)/10,extraMin:Math.round(extraMin*10)/10,late:delayMin>10};
+  });
+
+  const mult=OT_MULT[job]||1;
+  const otAuto=shiftHrs>0?(totalExtraMin/60)*mult/shiftHrs:0;
+  const otDays=Number(emp.OT_Days)||otAuto;
+  const utDays=Number(emp.UT_Days)||0;
+  const bonusDays=Number(emp.Bonus_Value)||0;
+  const penDays=Number(emp.Penalties_Value)||0;
+  const loan=Number(emp.Loan)||0;
+  const workshop=String(emp.Workshop_Y_N||'N').trim().toUpperCase()==='Y';
+
+  const shiftCost=shifts>0?newBasic/shifts:0;
+  const hourCost=shiftHrs>0?shiftCost/shiftHrs:0;
+  const otMonthly=hourCost*otAuto*shifts;
+  const sec01=newBasic+otMonthly;
+  const sec04=otDays*shiftCost+bonusDays*shiftCost-utDays*shiftCost-penDays*shiftCost-loan;
+
+  const g=k=>Number(emp[k])||0;
+  const physio=g('PhysioTotal')||g('Physio');
+  const physioB=physio<=40?0:physio<=70?(physio-40)*20:600+(physio-70)*30;
+  const sec02PT=physioB+g('Recovery')*50+g('Hejama')*40+g('Shock1')*20+g('Shock2')*50+g('Private')*400+g('Reassessment')*20+g('Assessment')*30+g('Tecar')*50;
+  const commitBPT=attDays>=shifts&&delayCount<=2?200:0;
+  const workshopB=workshop?200:0;
+  const sec03PT=commitBPT+workshopB;
+  const grandPT=sec01+sec02PT+sec03PT+sec04;
+
+  const asstSessB=g('Cavit')*10+g('RF')*5+g('Excilis')*10+g('Cryo')*5+g('CryoAir')*10+g('Blade')*5+g('DO')*10+g('Enaya')*10;
+  const commKPI_A=attDays>=shifts&&delayCount<=2?280:0;
+  const kpiTotalA=commKPI_A+g('HygPC')*120+g('EqPC')*200+g('RoomPC')*200;
+  const salesBA=g('SalesAmt_A')*0.03;
+  const grandAsst=sec01+asstSessB+kpiTotalA+sec04+salesBA;
+
+  const branch=String(emp.Branch||'').trim();
+  let sec02Secr=0;
+  const HK=['H1','H2','H3','H4','H5'],DK=['D1','D2','D3','D4'];
+  if(branch==='الهرم') HK.forEach((k,i)=>{const c=g(k+'_curr'),a=g(k+'_ach');if(c>0&&a/c>=.9)sec02Secr+=HARAM_BONS[i];});
+  else DK.forEach(k=>{const c=g(k+'_curr'),a=g(k+'_ach');if(c>0&&a/c>=.9)sec02Secr+=300;});
+  const kpiEff=(g('KPI_resp')*.4+g('KPI_time')*.4+g('KPI_res')*.2)*300;
+  const kpiRevB=g('KPI_rev')*basic;
+  const kpiCommS=attDays>=shifts&&delayCount<=2?300:0;
+  const sec03Secr=kpiCommS+kpiEff+kpiRevB;
+  const salesBS=g('SalesAmt_S')*0.03;
+  const grandSecr=sec01+sec02Secr+sec03Secr+sec04+salesBS;
+
+  const commitBC=attDays>=shifts&&delayCount<=2?500:0;
+  const cleanSchedB=(g('CleanSched')||1)*1200;
+  const sec03Clean=commitBC+cleanSchedB;
+  const salesBC=g('SalesAmt_C')*0.03;
+  const grandClean=sec01+sec03Clean+sec04+salesBC;
+
+  const nutrBonus=g('NutrProfit')*g('NutrPct');
+  const salesBN=g('SalesAmt_N')*0.03;
+  const grandNutr=sec01+nutrBonus+sec04+salesBN;
+
+  const grandMap={'Physical therapist':grandPT,'Assistant':grandAsst,'Secretary':grandSecr,'Housekeeping':grandClean,'Nutrition doctor':grandNutr};
+  const grand=grandMap[job]||grandPT;
+  const fc=fcMap[name]||{mat:g('FileMatlouba'),mak:g('FileMaktamela')};
+  const docErrs=docErrMap[name]||[];
+  const commNote=attDays>=shifts&&delayCount<=2?'✓ مستوفي الشروط':`الغياب: ${Math.max(0,shifts-attDays)} | التأخير: ${delayCount}`;
+
+  return{name,job,branch,basic,annual,newBasic,shifts,shiftHrs,shiftCost,hourCost,otAuto,otDays,utDays,
+    bonusDays,penDays,loan,workshop,workshopB,attDays,delayCount,attDetail,
+    sec01,sec02PT,sec03PT,sec04,grandPT,asstSessB,kpiTotalA,salesBA,grandAsst,
+    sec02Secr,sec03Secr,salesBS,grandSecr,sec03Clean,salesBC,grandClean,
+    nutrBonus,salesBN,grandNutr,grand,commNote,fc,docErrs};
+}
+
+// ── FORMAT ────────────────────────────────────────────────────────────────────
+function fmt(n){
+  if(n===null||n===undefined||isNaN(n)) return '—';
+  return Number(n).toLocaleString('ar-EG',{minimumFractionDigits:0,maximumFractionDigits:0})+' ج.م';
+}
+function fmtTime(t){
+  if(t instanceof Date) return t.toTimeString().slice(0,5);
+  if(typeof t==='number') return new Date(t*86400000).toISOString().substr(11,5);
+  return String(t||'—').slice(0,5);
+}
+
+// ── RUN ───────────────────────────────────────────────────────────────────────
+async function runPayroll(){
+  document.getElementById('uploadZone').style.display='none';
+  document.getElementById('loadingDiv').style.display='block';
+  document.getElementById('errorBox').style.display='none';
+  try{
+    const [empWb,attWb,fcWb,docWb]=await Promise.all([readWb(files.employees),readWb(files.attendance),readWb(files.completion),readWb(files.doc_errors)]);
+    const empData=parseEmployees(empWb);
+    const attData=parseAttendance(attWb);
+    const fcMap=parseCompletion(fcWb);
+    const docErrMap=parseDocErrors(docWb);
+    EMPLOYEES=empData.map(e=>calcEmployee(e,attData,fcMap,docErrMap));
+    document.getElementById('loadingDiv').style.display='none';
+    renderDashboard();
+  }catch(err){
+    document.getElementById('loadingDiv').style.display='none';
+    document.getElementById('uploadZone').style.display='block';
+    const eb=document.getElementById('errorBox');
+    eb.style.display='block';
+    eb.textContent='⚠️ خطأ: '+err.message;
+  }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderDashboard(){
+  const dash=document.getElementById('dashboard');
+  dash.style.display='block';
+  const total=EMPLOYEES.reduce((s,e)=>s+e.grand,0);
+  const jobTotals=JOBS.map(j=>({job:j,emps:EMPLOYEES.filter(e=>e.job===j)}));
+  const delayed=EMPLOYEES.filter(e=>e.delayCount>2).length;
+  const fullAtt=EMPLOYEES.filter(e=>e.attDays>=e.shifts).length;
+
+  // Header badges
+  document.getElementById('headerBadges').innerHTML=
+    `<span class="badge badge-green">✓ ${EMPLOYEES.length} موظف</span><span class="badge badge-blue">v10</span>`;
+
+  let html=`
+  <div class="dl-bar">
+    <button class="dl-btn dl-btn-green" onclick="exportAll()">⬇ تحميل كل الرواتب (Excel)</button>
+    <button class="dl-btn dl-btn-blue" onclick="resetApp()">🔄 ملفات جديدة</button>
+  </div>
+
+  <div class="summary-grid">
+    <div class="stat-card" style="--ac:var(--gold)">
+      <div class="stat-icon">💰</div>
+      <div class="stat-value">${(total/1000).toFixed(0)}K</div>
+      <div class="stat-label">إجمالي كشف الرواتب (ج.م)</div>
+    </div>
+    <div class="stat-card" style="--ac:var(--accent)">
+      <div class="stat-icon">👥</div>
+      <div class="stat-value">${EMPLOYEES.length}</div>
+      <div class="stat-label">إجمالي الموظفين</div>
+    </div>
+    ${jobTotals.filter(j=>j.emps.length).map(({job,emps})=>`
+    <div class="stat-card" style="--ac:${JOB_META[job].color}">
+      <div class="stat-icon">${JOB_META[job].icon}</div>
+      <div class="stat-value">${emps.length}</div>
+      <div class="stat-label">${job}</div>
+    </div>`).join('')}
+    <div class="stat-card" style="--ac:var(--red)">
+      <div class="stat-icon">⚠️</div>
+      <div class="stat-value">${delayed}</div>
+      <div class="stat-label">تأخير متكرر (&gt;2)</div>
+    </div>
+    <div class="stat-card" style="--ac:var(--green)">
+      <div class="stat-icon">✓</div>
+      <div class="stat-value">${fullAtt}</div>
+      <div class="stat-label">حضور كامل</div>
+    </div>
+  </div>
+
+  <div class="sec-hdr"><div class="sec-hdr-line"></div><div class="sec-hdr-title">توزيع الرواتب حسب الوظيفة</div><div class="sec-hdr-line"></div></div>
+  <div id="jobBars">
+  ${jobTotals.filter(j=>j.emps.length).map(({job,emps})=>{
+    const jt=emps.reduce((s,e)=>s+e.grand,0);
+    const pct=total>0?jt/total*100:0;
+    return `<div class="job-bar">
+      <div class="job-bar-top">
+        <span class="job-bar-name">${JOB_META[job].icon} ${job} <span style="color:var(--muted);font-weight:400">(${emps.length} موظف)</span></span>
+        <span class="job-bar-amt" style="color:${JOB_META[job].color}">${fmt(jt)}</span>
+      </div>
+      <div class="progress-wrap"><div class="progress-bar" style="width:${pct.toFixed(1)}%;background:${JOB_META[job].color}"></div></div>
+      <div class="job-bar-pct">${pct.toFixed(1)}% من الإجمالي</div>
+    </div>`;
+  }).join('')}
+  </div>
+
+  <div class="sec-hdr" style="margin-top:32px"><div class="sec-hdr-line"></div><div class="sec-hdr-title">تفاصيل الموظفين</div><div class="sec-hdr-line"></div></div>
+  <div class="tabs" id="tabsBar">
+    <div class="tab active" style="--tc:var(--accent)" onclick="switchTab('all',this)" data-tab="all">🗂 الكل <span class="tab-count">${EMPLOYEES.length}</span></div>
+    ${JOBS.map(j=>{
+      const c=EMPLOYEES.filter(e=>e.job===j).length;
+      if(!c) return '';
+      return `<div class="tab" style="--tc:${JOB_META[j].color}" onclick="switchTab('${j}',this)" data-tab="${j}">${JOB_META[j].icon} ${JOB_META[j].short} <span class="tab-count">${c}</span></div>`;
+    }).join('')}
+  </div>
+  <div id="tablesArea"></div>
+
+  <div class="sec-hdr"><div class="sec-hdr-line"></div><div class="sec-hdr-title">تحميل قسيمة فردية</div><div class="sec-hdr-line"></div></div>
+  <div class="indiv-dl" id="indivDl"></div>
+
+  <div class="grand-footer">
+    <div>
+      <div class="grand-footer-label">🏆 إجمالي كشف الرواتب</div>
+      <div class="grand-footer-sub">${EMPLOYEES.length} موظف — جميع الأقسام</div>
+    </div>
+    <div class="grand-footer-val">${fmt(total)}</div>
+  </div>`;
+
+  dash.innerHTML=html;
+  renderTables('all');
+  renderIndivButtons('all');
+
+  // Animate progress bars
+  setTimeout(()=>{
+    document.querySelectorAll('.progress-bar').forEach(b=>{
+      const w=b.style.width; b.style.width='0';
+      requestAnimationFrame(()=>{b.style.transition='width .8s ease';b.style.width=w;});
+    });
+  },100);
+}
+
+function switchTab(tab, el){
+  activeTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>{
+    const isActive=t.dataset.tab===tab;
+    t.classList.toggle('active',isActive);
+    if(isActive){const tc=t.style.getPropertyValue('--tc')||'var(--accent)';t.style.background=tc;t.style.color='white';t.style.borderColor='transparent';}
+    else{t.style.background='';t.style.color='';t.style.borderColor='';}
+  });
+  renderTables(tab);
+  renderIndivButtons(tab);
+}
+
+function renderTables(tab){
+  const area=document.getElementById('tablesArea');
+  const jobs=tab==='all'?JOBS:[tab];
+  let html='';
+  jobs.forEach(job=>{
+    const emps=EMPLOYEES.filter(e=>e.job===job);
+    if(!emps.length){if(tab!=='all')html+=`<div class="empty"><div class="empty-icon">${JOB_META[job].icon}</div><div>لا يوجد موظفون</div></div>`;return;}
+    const jTotal=emps.reduce((s,e)=>s+e.grand,0);
+    html+=`<div class="table-wrap">
+      <div class="table-header">
+        <span class="table-title">${JOB_META[job].icon} ${job} — ${emps.length} موظف</span>
+        <button class="dl-btn dl-btn-blue" onclick="exportJob('${job}')">⬇ تحميل القسم</button>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead><tr>
+            <th>الاسم</th><th>الوظيفة</th><th>حضور/شفتات</th>
+            <th>تأخير&gt;10</th><th>OT أيام</th><th>Sec04</th><th>الإجمالي</th><th></th>
+          </tr></thead>
+          <tbody id="tbody_${job.replace(/\s/g,'_')}">`;
+    emps.forEach((emp,i)=>{
+      const eid='emp_'+emp.name.replace(/\s/g,'_');
+      html+=`<tr>
+        <td><strong>${emp.name}</strong></td>
+        <td><span class="job-badge" style="background:${JOB_META[emp.job].color}20;color:${JOB_META[emp.job].color}">${JOB_META[emp.job].icon} ${JOB_META[emp.job].short}</span></td>
+        <td class="num">${emp.attDays} / ${emp.shifts}</td>
+        <td class="num ${emp.delayCount>2?'num-neg':'num-pos'}">${emp.delayCount}</td>
+        <td class="num num-pos">${emp.otDays.toFixed(1)}</td>
+        <td class="num ${emp.sec04<0?'num-neg':'num-pos'}">${fmt(emp.sec04)}</td>
+        <td class="num num-gold grand-total">${fmt(emp.grand)}</td>
+        <td><button class="att-toggle" onclick="toggleAtt('${eid}')">▼ حضور</button></td>
+      </tr>
+      <tr id="${eid}" style="display:none"><td colspan="8" style="padding:0">
+        <div class="att-sub">
+          <div class="att-sub-inner">
+            <table>
+              <thead><tr><th>التاريخ</th><th>الفرع</th><th>حضور</th><th>انصراف</th><th>تأخير(دق)</th><th>إضافي(دق)</th><th>&gt;10؟</th></tr></thead>
+              <tbody>
+              ${emp.attDetail.length?emp.attDetail.map(a=>`<tr>
+                <td class="num">${a.date}</td><td>${a.branch}</td>
+                <td class="num">${fmtTime(a.arrival)}</td><td class="num">${fmtTime(a.leave)}</td>
+                <td class="num ${a.delayMin>10?'num-neg':''}">${a.delayMin}</td>
+                <td class="num num-pos">${a.extraMin}</td>
+                <td>${a.late?'⚠️':'✓'}</td>
+              </tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px">لا توجد بيانات حضور</td></tr>'}
+              ${emp.attDetail.length?`<tr style="background:var(--surface)">
+                <td colspan="3"><strong>الإجماليات — ${emp.attDays} يوم</strong></td>
+                <td></td>
+                <td class="num num-neg"><strong>${emp.attDetail.reduce((s,a)=>s+a.delayMin,0).toFixed(1)} دق</strong></td>
+                <td class="num num-pos"><strong>${emp.attDetail.reduce((s,a)=>s+a.extraMin,0).toFixed(1)} دق</strong></td>
+                <td class="num num-neg"><strong>${emp.delayCount} مرة</strong></td>
+              </tr>`:''}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </td></tr>`;
+    });
+    html+=`<tr><td colspan="6" style="text-align:left;color:var(--muted);font-size:12px;padding:10px 14px">إجمالي القسم</td>
+      <td class="num num-gold grand-total">${fmt(jTotal)}</td><td></td></tr>`;
+    html+=`</tbody></table></div></div>`;
+  });
+  area.innerHTML=html;
+}
+
+function toggleAtt(eid){
+  const row=document.getElementById(eid);
+  const btn=row.previousElementSibling.querySelector('.att-toggle');
+  if(row.style.display==='none'){row.style.display='';if(btn)btn.textContent='▲ إخفاء';}
+  else{row.style.display='none';if(btn)btn.textContent='▼ حضور';}
+}
+
+function renderIndivButtons(tab){
+  const emps=tab==='all'?EMPLOYEES:EMPLOYEES.filter(e=>e.job===tab);
+  document.getElementById('indivDl').innerHTML=emps.map(emp=>
+    `<button class="dl-btn dl-btn-gold" onclick="exportSingle('${emp.name.replace(/'/g,"\\'")}')">
+      ${JOB_META[emp.job]?.icon} ${emp.name.split(' ').slice(0,2).join(' ')} — ${fmt(emp.grand)}
+    </button>`
+  ).join('');
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+function buildWb(emps){
+  const wb=XLSX.utils.book_new();
+  const sumData=[
+    ['الاسم','الوظيفة','الفرع','الراتب الأساسي','الزيادة','الراتب الجديد','أيام الحضور','تأخير>10','OT أيام','Sec01','الإجمالي'],
+    ...emps.map(e=>[e.name,e.job,e.branch,e.basic,e.annual,e.newBasic,e.attDays,e.delayCount,e.otDays.toFixed(2),e.sec01.toFixed(2),e.grand.toFixed(2)])
+  ];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sumData),'ملخص الرواتب');
+  JOBS.forEach(job=>{
+    const je=emps.filter(e=>e.job===job);if(!je.length)return;
+    const sec2Map={'Physical therapist':'sec02PT','Assistant':'asstSessB','Secretary':'sec02Secr','Housekeeping':null,'Nutrition doctor':'nutrBonus'};
+    const sec3Map={'Physical therapist':'sec03PT','Assistant':'kpiTotalA','Secretary':'sec03Secr','Housekeeping':'sec03Clean','Nutrition doctor':null};
+    const rows=[['الاسم','الراتب الجديد','Sec01','Sec02','Sec03','Sec04','الإجمالي'],
+      ...je.map(e=>[(e.name),(e.newBasic).toFixed(2),(e.sec01).toFixed(2),
+        (sec2Map[e.job]?e[sec2Map[e.job]]:0).toFixed(2),(sec3Map[e.job]?e[sec3Map[e.job]]:0).toFixed(2),
+        (e.sec04).toFixed(2),(e.grand).toFixed(2)])];
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),JOB_META[job].short);
+  });
+  const attRows=[['الاسم','التاريخ','الفرع','حضور','انصراف','تأخير(دق)','إضافي(دق)','تأخير>10']];
+  emps.forEach(e=>e.attDetail.forEach(a=>attRows.push([e.name,a.date,a.branch,fmtTime(a.arrival),fmtTime(a.leave),a.delayMin,a.extraMin,a.late?'نعم':'لا'])));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(attRows),'تفاصيل الحضور');
+  return wb;
+}
+
+function exportAll(){XLSX.writeFile(buildWb(EMPLOYEES),'BodyFix_Payroll_Dashboard.xlsx');}
+function exportJob(job){XLSX.writeFile(buildWb(EMPLOYEES.filter(e=>e.job===job)),`BodyFix_${JOB_META[job].short}.xlsx`);}
+function exportSingle(name){
+  const emp=EMPLOYEES.find(e=>e.name===name);if(!emp)return;
+  const wb=XLSX.utils.book_new();
+  const rows=[
+    ['البيان','القيمة','الملاحظة'],
+    ['الاسم',emp.name,''],['الوظيفة',emp.job,''],['الفرع',emp.branch,''],
+    ['--- Section 01 ---','',''],
+    ['الراتب الأساسي',emp.basic,''],['الزيادة',emp.annual,''],['الراتب الجديد',emp.newBasic,'Basic+Annual'],
+    ['الشفتات',emp.shifts,''],['تكلفة الشفت',emp.shiftCost.toFixed(2),''],['تكلفة الساعة',emp.hourCost.toFixed(2),''],
+    ['OT تلقائي (أيام)',emp.otAuto.toFixed(2),'من البصمة'],['إجمالي Sec01',emp.sec01.toFixed(2),''],
+    ['--- Section 04 ---','',''],
+    ['OT أيام',emp.otDays.toFixed(2),''],['بونص أيام',emp.bonusDays,''],
+    ['UT أيام',emp.utDays,''],['جزاء أيام',emp.penDays,''],['قرض',emp.loan,''],
+    ['إجمالي Sec04',emp.sec04.toFixed(2),''],
+    ['--- GRAND TOTAL ---',emp.grand.toFixed(2),''],
+    ['--- الحضور ---','',''],
+    ['أيام الحضور',emp.attDays,`من ${emp.shifts} شفت`],
+    ['تأخير>10',emp.delayCount,'مرة'],['ملاحظة الالتزام',emp.commNote,''],
+    ['--- الملفات ---','',''],
+    ['المطلوب',emp.fc.mat,''],['المنجز',emp.fc.mak,''],
+  ];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'قسيمة الراتب');
+  if(emp.attDetail.length){
+    const ar=[['التاريخ','الفرع','حضور','انصراف','تأخير(دق)','إضافي(دق)','تأخير>10']];
+    emp.attDetail.forEach(a=>ar.push([a.date,a.branch,fmtTime(a.arrival),fmtTime(a.leave),a.delayMin,a.extraMin,a.late?'نعم':'لا']));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ar),'تفاصيل الحضور');
+  }
+  XLSX.writeFile(wb,`PaySlip_${emp.name.replace(/\s/g,'_')}.xlsx`);
+}
+
+function resetApp(){
+  EMPLOYEES=[];
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('dashboard').innerHTML='';
+  document.getElementById('headerBadges').innerHTML='';
+  document.getElementById('uploadZone').style.display='block';
+  ['employees','attendance','completion','doc_errors'].forEach(k=>{
+    files[k]=null;
+    document.getElementById('card_'+k).classList.remove('done');
+    document.getElementById('icon_'+k).textContent={employees:'👥',attendance:'📅',completion:'📁',doc_errors:'❌'}[k];
+    document.getElementById('status_'+k).textContent='';
+  });
+  checkReady();
+}
+</script>
+</body>
+</html>
